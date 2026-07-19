@@ -1,0 +1,66 @@
+name: Deploy
+
+on:
+  push:
+    tags:
+      - 'v*'        # v0.1.0, v1.0.0, etc.
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Create deploy archive
+        run: |
+          tar czf /tmp/deploy.tgz \
+            --exclude='.git' --exclude='tests' --exclude='node_modules' \
+            --exclude='storage/logs/*.log' --exclude='.env' --exclude='docs' \
+            --exclude='.github' \
+            app/ bootstrap/ config/ database/ routes/ resources/ \
+            public/ storage/ composer.json composer.lock artisan
+
+      - name: Setup SSH
+        uses: shimataro/ssh-key-action@v2
+        with:
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          known_hosts: ${{ secrets.SSH_KNOWN_HOSTS || '' }}
+          config: |
+            Host decoder
+              HostName ${{ secrets.SSH_HOST }}
+              User ${{ secrets.SSH_USER }}
+              Port 22
+              StrictHostKeyChecking no
+              UserKnownHostsFile /dev/null
+
+      - name: Upload to server
+        run: |
+          scp /tmp/deploy.tgz decoder:${{ secrets.SSH_PATH }}/deploy.tgz
+
+      - name: Extract and install
+        run: |
+          ssh decoder << 'REMOTE'
+            set -e
+            cd ${{ secrets.SSH_PATH }}
+
+            # Backup .env
+            [ -f .env ] && cp .env /tmp/decoder-env-backup || true
+
+            # Extract
+            tar xzf deploy.tgz && rm deploy.tgz
+
+            # public/ → www/
+            cp -r public/* www/
+            cp public/.htaccess www/ 2>/dev/null || true
+
+            # Restore .env
+            [ -f /tmp/decoder-env-backup ] && cp /tmp/decoder-env-backup .env && rm /tmp/decoder-env-backup || true
+
+            # Dependencies, migrations, cache
+            composer install --no-dev --no-progress --prefer-dist --optimize-autoloader
+            chmod -R 775 storage bootstrap/cache
+            php artisan migrate --force
+            php artisan config:clear && php artisan route:clear && php artisan cache:clear
+
+            echo "Deploy OK: $(date)"
+          REMOTE
