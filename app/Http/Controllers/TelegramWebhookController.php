@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Bot\Messages;
 use App\Platforms\Telegram\TelegramAdapter;
 use App\Services\BotService;
 use Illuminate\Http\Request;
@@ -45,10 +46,7 @@ class TelegramWebhookController extends Controller
                     'error' => $e->getMessage(),
                     'user_id' => $message->userId,
                 ]);
-                $adapter->sendMessage(
-                    $message->chatId,
-                    '⚠️ Произошла ошибка. Попробуйте позже.'
-                );
+                $adapter->sendMessage($message->chatId, Messages::error());
             }
         }
 
