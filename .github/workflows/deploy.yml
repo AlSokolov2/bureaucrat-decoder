@@ -54,7 +54,6 @@ jobs:
           [ -f /tmp/decoder-env-backup ] && cp /tmp/decoder-env-backup .env && rm /tmp/decoder-env-backup || true
 
           export PHP=/usr/bin/php8.4
-          \$PHP /usr/bin/composer install --no-dev --no-progress --prefer-dist --optimize-autoloader
           chmod -R 775 storage bootstrap/cache
           \$PHP artisan migrate --force
           \$PHP artisan config:clear && \$PHP artisan route:clear && \$PHP artisan cache:clear
