@@ -11,6 +11,7 @@ use PHPUnit\Framework\TestCase;
 class BureaucratDecoderServiceTest extends TestCase
 {
     private BureaucratDecoderService $service;
+
     private HttpClient $http;
 
     protected function setUp(): void
