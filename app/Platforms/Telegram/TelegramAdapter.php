@@ -6,6 +6,7 @@ use App\DTO\BotResponse;
 use App\DTO\IncomingMessage;
 use App\Platforms\Contracts\PlatformAdapterInterface;
 use Telegram\Bot\Api;
+use Telegram\Bot\Objects\Message;
 use Telegram\Bot\Objects\Update;
 
 /**
@@ -31,13 +32,13 @@ class TelegramAdapter implements PlatformAdapterInterface
         }
 
         $message = $update->getMessage();
-        if (! $message) {
+        if (! $message || ! ($message instanceof Message)) {
             return null;
         }
 
         $photoUrl = null;
-        $photos = $message->photo;
-        if ($photos && count($photos) > 0) {
+        $photos = $message->photo ?? null;
+        if ($photos && is_countable($photos) && count($photos) > 0) {
             $largestPhoto = $photos[count($photos) - 1];
             $fileId = $largestPhoto['file_id'] ?? $largestPhoto->file_id ?? null;
             if ($fileId) {
