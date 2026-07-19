@@ -17,7 +17,7 @@ Route::get('/', function () {
 // Set MAX webhook (when implemented):
 //   POST https://platform-api.max.ru/bots/setWebhook  { "url": "https://your-domain.com/webhook/max" }
 
-Route::post('/webhook/telegram/{bot?}', TelegramWebhookController::class)
+Route::post('/webhook/telegram', TelegramWebhookController::class)
     ->name('telegram.webhook');
 
 Route::post('/webhook/max', MaxWebhookController::class)
