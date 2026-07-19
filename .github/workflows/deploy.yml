@@ -53,10 +53,11 @@ jobs:
 
           [ -f /tmp/decoder-env-backup ] && cp /tmp/decoder-env-backup .env && rm /tmp/decoder-env-backup || true
 
-          composer install --no-dev --no-progress --prefer-dist --optimize-autoloader
+          export PHP=/usr/bin/php8.4
+          \$PHP /usr/bin/composer install --no-dev --no-progress --prefer-dist --optimize-autoloader
           chmod -R 775 storage bootstrap/cache
-          php artisan migrate --force
-          php artisan config:clear && php artisan route:clear && php artisan cache:clear
+          \$PHP artisan migrate --force
+          \$PHP artisan config:clear && \$PHP artisan route:clear && \$PHP artisan cache:clear
 
           echo "Deploy OK: \$(date)"
           SCRIPT
