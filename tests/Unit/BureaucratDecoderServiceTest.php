@@ -6,7 +6,7 @@ use App\Services\BureaucratDecoderService;
 use Illuminate\Http\Client\Factory as HttpClient;
 use Illuminate\Http\Client\Response;
 use Mockery;
-use PHPUnit\Framework\TestCase;
+use Tests\TestCase;
 
 class BureaucratDecoderServiceTest extends TestCase
 {
@@ -37,6 +37,9 @@ class BureaucratDecoderServiceTest extends TestCase
         $response->shouldReceive('json')
             ->with('result.alternatives.0.message.text')
             ->andReturn($rawResponse);
+        $response->shouldReceive('json')
+            ->with('result.usage')
+            ->andReturn(['inputTextTokens' => 10, 'completionTokens' => 5, 'totalTokens' => 15]);
 
         $this->http->shouldReceive('withHeader')
             ->once()

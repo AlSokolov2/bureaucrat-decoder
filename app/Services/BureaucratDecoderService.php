@@ -132,7 +132,16 @@ SYS;
             );
         }
 
-        return $response->json('result.alternatives.0.message.text') ?? '';
+        $text = $response->json('result.alternatives.0.message.text') ?? '';
+        $usage = $response->json('result.usage');
+
+        Log::info('YandexGPT request', [
+            'input_tokens' => $usage['inputTextTokens'] ?? 0,
+            'output_tokens' => $usage['completionTokens'] ?? 0,
+            'total_tokens' => $usage['totalTokens'] ?? 0,
+        ]);
+
+        return $text;
     }
 
     /**
