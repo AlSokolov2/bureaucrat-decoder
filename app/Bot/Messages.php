@@ -5,15 +5,15 @@ namespace App\Bot;
 /**
  * All user-facing bot messages.
  *
- * Kept separate from BotService so text can be edited
- * without touching business logic. If i18n or DB-backed
- * messages are needed later, this class becomes a facade
- * over them.
+ * Extracted from BotService so text can be edited without
+ * touching business logic. If i18n or DB-backed messages
+ * are needed later, this class becomes a facade over them.
  */
 class Messages
 {
     private const FREE_LIMIT = 5;
 
+    /** Welcome message shown on /start. */
     public static function welcome(): string
     {
         return "👋 <b>Дешифратор</b>\n\n"
@@ -27,6 +27,7 @@ class Messages
             .'Подписка: /subscribe';
     }
 
+    /** Detailed usage guide shown on /help. */
     public static function help(): string
     {
         return "<b>📖 Как пользоваться Дешифратором</b>\n\n"
@@ -58,22 +59,26 @@ class Messages
             .'/subscribe — Подписка и лимиты';
     }
 
+    /** Placeholder for /history command (not yet implemented). */
     public static function historyStub(): string
     {
         return '📋 История расшифровок пока не реализована. Будет в следующей версии.';
     }
 
+    /** Shown when the user has exhausted their free decodes. */
     public static function limitExceeded(): string
     {
         return '⚠️ Исчерпан лимит бесплатных расшифровок ('.self::FREE_LIMIT.").\n\n"
             .'Оформите подписку: /subscribe';
     }
 
+    /** Prompt when the user sends a message without photo or text. */
     public static function askForPhotoOrText(): string
     {
         return '📎 Отправьте фото или текст официального письма.';
     }
 
+    /** Generic error shown on unexpected failure. */
     public static function error(): string
     {
         return '⚠️ Произошла ошибка. Попробуйте позже.';

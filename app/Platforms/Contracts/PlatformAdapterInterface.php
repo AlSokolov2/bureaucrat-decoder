@@ -5,22 +5,30 @@ namespace App\Platforms\Contracts;
 use App\DTO\IncomingMessage;
 
 /**
- * Every platform adapter must implement this interface.
+ * Contract for platform adapters.
  *
- * The adapter's job:
- * 1. Accept a platform-specific update (Telegram Update object, MAX array, VK Request)
- * 2. Convert it into an IncomingMessage DTO
- * 3. Provide a method to send a response back in the platform's format
+ * Every messaging platform (Telegram, MAX, VK) needs an adapter
+ * that knows how to:
+ *
+ * 1. Extract a normalized IncomingMessage from a platform-specific update.
+ * 2. Send a reply back in the platform's native format.
  */
 interface PlatformAdapterInterface
 {
     /**
-     * Extract a platform-agnostic message from a platform-specific update.
+     * Convert a platform-specific update into a normalized DTO.
+     *
+     * @param  mixed  $update  Platform-specific update object or array.
+     * @return IncomingMessage|null null if the update doesn't contain a message.
      */
     public function extractMessage(mixed $update): ?IncomingMessage;
 
     /**
-     * Send a plain-text reply back to the user on this platform.
+     * Send a text reply back to the user.
+     *
+     * @param  string  $chatId  Platform-specific chat/peer identifier.
+     * @param  string  $text  Message text (may contain HTML).
+     * @param  array  $options  Platform-specific extra options (keyboard, etc.).
      */
     public function sendMessage(string $chatId, string $text, array $options = []): void;
 

@@ -8,15 +8,15 @@ use Illuminate\Http\Client\Factory as HttpClient;
 use Illuminate\Support\Facades\Log;
 
 /**
- * MAX Messenger Bot API adapter.
+ * MAX Messenger Bot API adapter (skeleton).
  *
- * MAX Bot API reference: https://platform-api.max.ru/
- * Auth: Authorization: <token> header (no Bearer prefix)
- * Rate limit: 30 req/s
+ * MAX is the Russian national messenger (VK), mandatory pre-install
+ * since September 2025. It has a Bot API similar to Telegram.
  *
- * This is a SKELETON. Implement sendMessage() and extractMessage()
- * when a PHP SDK for MAX is ready or when you write a lightweight
- * HTTP client.
+ * This adapter will be activated before the public release.
+ * Currently all methods are stubs that log and return null.
+ *
+ * @see https://platform-api.max.ru/
  */
 class MaxAdapter implements PlatformAdapterInterface
 {
@@ -27,11 +27,15 @@ class MaxAdapter implements PlatformAdapterInterface
         private readonly HttpClient $http,
     ) {}
 
+    /**
+     * Extract an IncomingMessage from a MAX webhook payload.
+     *
+     * @param  array  $update  JSON-decoded webhook body from MAX.
+     */
     public function extractMessage(mixed $update): ?IncomingMessage
     {
         // TODO: Implement when MAX webhook is set up.
-        // $update will be the JSON-decoded array from MAX webhook.
-        // Extract: user_id, chat_id, text, photo file_id → download URL.
+        // Extract user_id, chat_id, text, photo file_id → download URL.
 
         Log::info('MAX: extractMessage() called but not yet implemented', [
             'update_type' => gettype($update),
@@ -40,21 +44,22 @@ class MaxAdapter implements PlatformAdapterInterface
         return null;
     }
 
+    /**
+     * Send a message via the MAX Bot API.
+     *
+     * @param  string  $chatId  MAX peer_id.
+     * @param  string  $text  Message text (HTML).
+     * @param  array  $options  Extra options (keyboard, etc.).
+     */
     public function sendMessage(string $chatId, string $text, array $options = []): void
     {
         // TODO: POST /messages.sendMessage
-        // {
-        //   "peer_id": "<chatId>",
-        //   "text": "<text>",
-        //   ...keyboard options...
-        // }
+        // { "peer_id": "<chatId>", "text": "<text>", ... }
 
         Log::info('MAX: sendMessage() called but not yet implemented', [
             'chat_id' => $chatId,
             'text' => mb_substr($text, 0, 100),
         ]);
-
-        // Placeholder — will be implemented before MAX launch.
     }
 
     public function platformName(): string
@@ -62,7 +67,7 @@ class MaxAdapter implements PlatformAdapterInterface
         return 'max';
     }
 
-    /** Set webhook URL for this bot. */
+    /** Register the webhook URL with MAX. */
     public function setWebhook(string $url): void
     {
         $this->http

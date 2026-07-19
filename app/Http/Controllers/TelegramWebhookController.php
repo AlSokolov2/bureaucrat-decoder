@@ -10,17 +10,22 @@ use Illuminate\Http\Response;
 use Illuminate\Support\Facades\Log;
 use Telegram\Bot\Api;
 
+/**
+ * Handles incoming webhook POST requests from Telegram.
+ *
+ * Flow:
+ *   Telegram POST → Update object → TelegramAdapter → IncomingMessage
+ *   → BotService::process() → reply text → TelegramAdapter::sendMessage()
+ */
 class TelegramWebhookController extends Controller
 {
     /**
-     * Handle incoming webhook POST from Telegram.
-     *
-     * Flow:
-     *   Telegram POST → Update object → TelegramAdapter → IncomingMessage
-     *   → BotService::process() → response text → TelegramAdapter::sendMessage()
+     * Process a Telegram webhook call.
      *
      * URL:  POST  /webhook/telegram/{bot}
      * CSRF: excluded in bootstrap/app.php
+     *
+     * @param  string  $bot  Bot config key (default: 'mybot').
      */
     public function __invoke(
         Request $request,

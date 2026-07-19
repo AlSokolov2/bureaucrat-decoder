@@ -2,13 +2,17 @@
 
 namespace App\Services;
 
+use App\Exceptions\DecodingFailedException;
 use Illuminate\Http\Client\Factory as HttpClient;
 use Illuminate\Support\Facades\Log;
 
 /**
- * Расшифровка официальных писем через YandexGPT.
+ * Decodes Russian official documents via YandexGPT.
  *
- * Поддерживает текст и фото (multimodal).
+ * Supports plain text and photos (multimodal).
+ *
+ * The system prompt enforces a strict 4-field output:
+ * what happened, amount, deadline, action — with hallucination safeguards.
  */
 class BureaucratDecoderService
 {
@@ -38,7 +42,12 @@ SYS;
     ) {}
 
     /**
-     * Расшифровать текст документа.
+     * Decode plain text from an official document.
+     *
+     * @param  string  $text  Raw text of the document (OCR'd or pasted).
+     * @return array{what: string, amount: string, deadline: string, action: string, raw: string}
+     *
+     * @throws DecodingFailedException on YandexGPT API failure.
      */
     public function decode(string $text): array
     {
@@ -51,25 +60,52 @@ SYS;
     }
 
     /**
-     * Расшифровать фото документа (multimodal — YandexGPT сам делает OCR+понимание).
+     * Decode a photo of an official document.
      *
-     * @param  string  $imageUrl  публичный URL или data:image/...;base64,...
+     * Uses YandexGPT multimodal (vision) — OCR + understanding in one request.
+     *
+     * @param  string  $imageUrl  Public URL or `data:image/...;base64,...`.
+     * @return array{what: string, amount: string, deadline: string, action: string, raw: string}
+     *
+     * @throws DecodingFailedException on YandexGPT API failure.
      */
     public function decodePhoto(string $imageUrl): array
     {
-        // Если это data: URI, передаём как base64 напрямую
         $response = $this->call([
             ['role' => 'system', 'text' => self::SYSTEM_PROMPT],
             [
                 'role' => 'user',
                 'text' => 'Расшифруй этот официальный документ.',
-                'image' => $imageUrl,  // YandexGPT vision
+                'image' => $imageUrl,
             ],
         ]);
 
         return $this->parseResponse($response);
     }
 
+    /**
+     * Format a decoded result as a user-facing HTML message.
+     *
+     * @param  array{what: string, amount: string, deadline: string, action: string}  $decoded
+     */
+    public function formatForUser(array $decoded): string
+    {
+        return "<b>📋 Расшифровка документа</b>\n\n"
+            .'<b>Что случилось:</b> '.$this->esc($decoded['what'])."\n"
+            .'<b>Сумма:</b> '.$this->esc($decoded['amount'])."\n"
+            .'<b>Срок:</b> '.$this->esc($decoded['deadline'])."\n"
+            .'<b>Что делать:</b> '.$this->esc($decoded['action'])."\n\n"
+            .'⚠️ <i>Это автоматическая расшифровка. Проверьте важные данные в оригинале.</i>';
+    }
+
+    /**
+     * Send a request to YandexGPT and return the raw completion text.
+     *
+     * @param  array  $messages  Messages array as per YandexGPT API spec.
+     * @return string The model's text response.
+     *
+     * @throws DecodingFailedException on HTTP failure or empty response.
+     */
     private function call(array $messages): string
     {
         $response = $this->http
@@ -91,12 +127,21 @@ SYS;
                 'body' => $response->body(),
             ]);
 
-            throw new \RuntimeException('Не удалось обработать документ. Попробуйте позже.');
+            throw new DecodingFailedException(
+                'Не удалось обработать документ. Попробуйте позже.'
+            );
         }
 
         return $response->json('result.alternatives.0.message.text') ?? '';
     }
 
+    /**
+     * Parse YandexGPT's free-form response into structured fields.
+     *
+     * Looks for numbered lines (1. ... 2. ... 3. ... 4. ...).
+     *
+     * @return array{what: string, amount: string, deadline: string, action: string, raw: string}
+     */
     private function parseResponse(string $raw): array
     {
         $lines = explode("\n", trim($raw));
@@ -120,16 +165,6 @@ SYS;
         }
 
         return $result;
-    }
-
-    public function formatForUser(array $decoded): string
-    {
-        return "<b>📋 Расшифровка документа</b>\n\n"
-            .'<b>Что случилось:</b> '.$this->esc($decoded['what'])."\n"
-            .'<b>Сумма:</b> '.$this->esc($decoded['amount'])."\n"
-            .'<b>Срок:</b> '.$this->esc($decoded['deadline'])."\n"
-            .'<b>Что делать:</b> '.$this->esc($decoded['action'])."\n\n"
-            .'⚠️ <i>Это автоматическая расшифровка. Проверьте важные данные в оригинале.</i>';
     }
 
     private function esc(string $text): string

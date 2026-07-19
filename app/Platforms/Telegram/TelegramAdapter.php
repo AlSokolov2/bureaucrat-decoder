@@ -7,12 +7,26 @@ use App\Platforms\Contracts\PlatformAdapterInterface;
 use Telegram\Bot\Api;
 use Telegram\Bot\Objects\Update;
 
+/**
+ * Telegram adapter — converts Telegram Update objects
+ * into platform-agnostic IncomingMessage DTOs and sends
+ * replies via the Telegram Bot API.
+ */
 class TelegramAdapter implements PlatformAdapterInterface
 {
     public function __construct(
         private readonly Api $telegram,
     ) {}
 
+    /**
+     * Extract an IncomingMessage from a Telegram Update.
+     *
+     * Downloads the largest available photo and any document
+     * to obtain public URLs for processing.
+     *
+     * @param  Update  $update  Telegram Update object from the SDK.
+     * @return IncomingMessage|null null if the update has no message.
+     */
     public function extractMessage(mixed $update): ?IncomingMessage
     {
         if (! $update instanceof Update) {
@@ -27,7 +41,6 @@ class TelegramAdapter implements PlatformAdapterInterface
         $photoUrl = null;
         $photos = $message->photo;
         if ($photos && count($photos) > 0) {
-            // Get the largest photo (last in array)
             $largestPhoto = $photos[count($photos) - 1];
             $fileId = $largestPhoto['file_id'] ?? $largestPhoto->file_id ?? null;
             if ($fileId) {
@@ -56,6 +69,9 @@ class TelegramAdapter implements PlatformAdapterInterface
         );
     }
 
+    /**
+     * Send an HTML-formatted message back to the user.
+     */
     public function sendMessage(string $chatId, string $text, array $options = []): void
     {
         $this->telegram->sendMessage(array_merge([
@@ -70,22 +86,23 @@ class TelegramAdapter implements PlatformAdapterInterface
         return 'telegram';
     }
 
-    /** Set webhook URL for this bot. */
+    /** Register the webhook URL with Telegram. */
     public function setWebhook(string $url): void
     {
         $this->telegram->setWebhook(['url' => $url]);
     }
 
+    /** Remove the webhook from Telegram. */
     public function deleteWebhook(): void
     {
         $this->telegram->deleteWebhook();
     }
 
-    /** Describe registered commands (for BotFather). */
+    /** Return registered bot commands for BotFather. */
     public function getCommands(): array
     {
         return [
-            ['command' => 'start', 'description' => 'Начать'],
+            ['command' => 'start', 'description' => 'Начать работу'],
         ];
     }
 }
