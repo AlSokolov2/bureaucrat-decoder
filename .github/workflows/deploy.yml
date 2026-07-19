@@ -11,6 +11,9 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Install dependencies
+        run: composer install --no-dev --no-progress --prefer-dist --optimize-autoloader
+
       - name: Create deploy archive
         run: |
           tar czf /tmp/deploy.tgz \
@@ -18,7 +21,7 @@ jobs:
             --exclude='storage/logs/*.log' --exclude='.env' --exclude='docs' \
             --exclude='.github' \
             app/ bootstrap/ config/ database/ routes/ resources/ \
-            public/ storage/ composer.json composer.lock artisan
+            public/ storage/ vendor/ composer.json composer.lock artisan
 
       - name: Setup SSH
         run: |
