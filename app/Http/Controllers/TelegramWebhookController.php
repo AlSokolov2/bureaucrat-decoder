@@ -26,9 +26,8 @@ class TelegramWebhookController extends Controller
     public function __invoke(
         Request $request,
         BotService $service,
-        string $bot = 'mybot',
     ): Response {
-        $telegram = app(Api::class)->bot($bot);
+        $telegram = new Api(config('telegram.bots.mybot.token') ?? env('TELEGRAM_BOT_TOKEN'));
         $update = $telegram->commandsHandler(true);
 
         if (! $update) {
