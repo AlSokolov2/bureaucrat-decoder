@@ -3,11 +3,7 @@
 namespace App\Bot;
 
 /**
- * All user-facing bot messages.
- *
- * Extracted from BotService so text can be edited without
- * touching business logic. If i18n or DB-backed messages
- * are needed later, this class becomes a facade over them.
+ * All user-facing bot messages and keyboards.
  */
 class Messages
 {
@@ -59,7 +55,7 @@ class Messages
             .'/subscribe — Подписка и лимиты';
     }
 
-    /** Placeholder for /history command (not yet implemented). */
+    /** Placeholder for /history command. */
     public static function historyStub(): string
     {
         return '📋 История расшифровок пока не реализована. Будет в следующей версии.';
@@ -82,5 +78,52 @@ class Messages
     public static function error(): string
     {
         return '⚠️ Произошла ошибка. Попробуйте позже.';
+    }
+
+    /*
+    |--------------------------------------------------------------------------
+    | Feedback
+    |--------------------------------------------------------------------------
+    */
+
+    /** Prompt appended after every successful decode. */
+    public static function feedbackPrompt(): string
+    {
+        return "\n\n<i>Расшифровка точна?</i>";
+    }
+
+    /** Inline keyboard for post-decode feedback. */
+    public static function feedbackKeyboard(): array
+    {
+        return [
+            [
+                ['text' => '👍 Да', 'callback_data' => 'feedback:good'],
+                ['text' => '👎 Нет', 'callback_data' => 'feedback:bad'],
+            ],
+        ];
+    }
+
+    /** Shown when user clicks 👎 (bad feedback). */
+    public static function feedbackBad(): string
+    {
+        return 'Что именно не так? Выберите или напишите:';
+    }
+
+    /** Inline keyboard for bad feedback details. */
+    public static function feedbackBadKeyboard(): array
+    {
+        return [
+            [['text' => 'Неверная сумма', 'callback_data' => 'feedback:detail:amount']],
+            [['text' => 'Неверный срок', 'callback_data' => 'feedback:detail:deadline']],
+            [['text' => 'Пропущено важное', 'callback_data' => 'feedback:detail:missing']],
+            [['text' => 'Бессмысленный ответ', 'callback_data' => 'feedback:detail:garbage']],
+            [['text' => 'Другое', 'callback_data' => 'feedback:detail:other']],
+        ];
+    }
+
+    /** Shown after user gives detailed feedback. */
+    public static function feedbackThanks(): string
+    {
+        return 'Спасибо! Учтём при улучшении расшифровок.';
     }
 }

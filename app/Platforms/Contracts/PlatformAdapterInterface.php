@@ -6,12 +6,6 @@ use App\DTO\IncomingMessage;
 
 /**
  * Contract for platform adapters.
- *
- * Every messaging platform (Telegram, MAX, VK) needs an adapter
- * that knows how to:
- *
- * 1. Extract a normalized IncomingMessage from a platform-specific update.
- * 2. Send a reply back in the platform's native format.
  */
 interface PlatformAdapterInterface
 {

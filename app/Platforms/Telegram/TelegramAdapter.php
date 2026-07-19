@@ -2,6 +2,7 @@
 
 namespace App\Platforms\Telegram;
 
+use App\DTO\BotResponse;
 use App\DTO\IncomingMessage;
 use App\Platforms\Contracts\PlatformAdapterInterface;
 use Telegram\Bot\Api;
@@ -9,8 +10,7 @@ use Telegram\Bot\Objects\Update;
 
 /**
  * Telegram adapter — converts Telegram Update objects
- * into platform-agnostic IncomingMessage DTOs and sends
- * replies via the Telegram Bot API.
+ * into platform-agnostic DTOs.
  */
 class TelegramAdapter implements PlatformAdapterInterface
 {
@@ -21,10 +21,7 @@ class TelegramAdapter implements PlatformAdapterInterface
     /**
      * Extract an IncomingMessage from a Telegram Update.
      *
-     * Downloads the largest available photo and any document
-     * to obtain public URLs for processing.
-     *
-     * @param  Update  $update  Telegram Update object from the SDK.
+     * @param  Update  $update  Telegram Update object.
      * @return IncomingMessage|null null if the update has no message.
      */
     public function extractMessage(mixed $update): ?IncomingMessage
@@ -70,15 +67,60 @@ class TelegramAdapter implements PlatformAdapterInterface
     }
 
     /**
-     * Send an HTML-formatted message back to the user.
+     * Send a message, optionally with an inline keyboard.
+     *
+     * @param  array  $options  May contain 'keyboard' for inline_keyboard.
      */
     public function sendMessage(string $chatId, string $text, array $options = []): void
     {
-        $this->telegram->sendMessage(array_merge([
+        $payload = [
             'chat_id' => $chatId,
             'text' => $text,
             'parse_mode' => 'HTML',
-        ], $options));
+        ];
+
+        if (isset($options['keyboard'])) {
+            $payload['reply_markup'] = json_encode([
+                'inline_keyboard' => $options['keyboard'],
+            ]);
+        }
+
+        $this->telegram->sendMessage(array_merge($payload, $options));
+    }
+
+    /**
+     * Send a full BotResponse (text + optional keyboard).
+     */
+    public function sendResponse(string $chatId, BotResponse $response): void
+    {
+        $options = [];
+        if ($response->keyboard !== null) {
+            $options['keyboard'] = $response->keyboard;
+        }
+        $this->sendMessage($chatId, $response->text, $options);
+    }
+
+    /**
+     * Answer a callback query (inline button press) to stop the spinner.
+     */
+    public function answerCallbackQuery(string $callbackQueryId): void
+    {
+        $this->telegram->answerCallbackQuery([
+            'callback_query_id' => $callbackQueryId,
+        ]);
+    }
+
+    /**
+     * Edit the text of a message (for replacing keyboard after feedback).
+     */
+    public function editMessageText(string $chatId, int $messageId, string $text): void
+    {
+        $this->telegram->editMessageText([
+            'chat_id' => $chatId,
+            'message_id' => $messageId,
+            'text' => $text,
+            'parse_mode' => 'HTML',
+        ]);
     }
 
     public function platformName(): string

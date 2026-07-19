@@ -3,19 +3,13 @@
 namespace App\Services;
 
 use App\Bot\Messages;
+use App\DTO\BotResponse;
 use App\DTO\IncomingMessage;
 use App\Exceptions\DecodingFailedException;
 use Illuminate\Support\Facades\Log;
 
 /**
  * Platform-agnostic business logic for the bureaucrat decoder bot.
- *
- * Routes incoming messages to the appropriate handler based on
- * content (/start, /help, /history, photo, text) and enforces
- * a per-user rate limit.
- *
- * Every platform adapter (Telegram, MAX, VK Mini Apps) calls
- * this service with an already-normalized IncomingMessage DTO.
  */
 class BotService
 {
@@ -27,50 +21,76 @@ class BotService
 
     /**
      * Process an incoming message and return the bot's reply.
-     *
-     * @param  IncomingMessage  $message  Normalized message from any platform.
-     * @return string Reply text (may contain HTML tags).
      */
-    public function process(IncomingMessage $message): string
+    public function process(IncomingMessage $message): BotResponse
     {
         if ($message->hasText() && str_starts_with($message->text, '/start')) {
-            return Messages::welcome();
+            return new BotResponse(Messages::welcome());
         }
 
         if ($message->hasText() && str_starts_with($message->text, '/help')) {
-            return Messages::help();
+            return new BotResponse(Messages::help());
         }
 
         if ($message->hasText() && str_starts_with($message->text, '/history')) {
-            return Messages::historyStub();
+            return new BotResponse(Messages::historyStub());
         }
 
         if (! $this->withinLimit($message->userId)) {
-            return Messages::limitExceeded();
+            return new BotResponse(Messages::limitExceeded());
         }
 
         try {
             if ($message->hasPhoto()) {
-                return $this->handlePhoto($message);
+                return $this->decodeResponse($this->handlePhoto($message));
             }
 
             if ($message->hasText()) {
-                return $this->handleText($message);
+                return $this->decodeResponse($this->handleText($message));
             }
 
-            return Messages::askForPhotoOrText();
+            return new BotResponse(Messages::askForPhotoOrText());
         } catch (DecodingFailedException $e) {
             Log::error('Decoder error', ['error' => $e->getMessage()]);
 
-            return Messages::error();
+            return new BotResponse(Messages::error());
         }
     }
 
     /**
-     * Decode a photo and increment usage counter.
-     *
-     * @throws DecodingFailedException on YandexGPT API failure.
+     * Handle a callback query (inline keyboard button press).
      */
+    public function processCallback(string $callbackData, string $userId): BotResponse
+    {
+        Log::info('Feedback callback', [
+            'user_id' => $userId,
+            'data' => $callbackData,
+        ]);
+
+        return match (true) {
+            $callbackData === 'feedback:good' => new BotResponse(Messages::feedbackThanks()),
+            $callbackData === 'feedback:bad' => new BotResponse(
+                Messages::feedbackBad(),
+                Messages::feedbackBadKeyboard()
+            ),
+            str_starts_with($callbackData, 'feedback:detail:') => new BotResponse(
+                Messages::feedbackThanks()
+            ),
+            default => new BotResponse(''),
+        };
+    }
+
+    /**
+     * Wrap a decoded result with feedback prompt and keyboard.
+     */
+    private function decodeResponse(string $text): BotResponse
+    {
+        return new BotResponse(
+            $text.Messages::feedbackPrompt(),
+            Messages::feedbackKeyboard()
+        );
+    }
+
     private function handlePhoto(IncomingMessage $message): string
     {
         $result = $this->decoder->decodePhoto($message->photoUrl);
@@ -79,11 +99,6 @@ class BotService
         return $this->decoder->formatForUser($result);
     }
 
-    /**
-     * Decode text and increment usage counter.
-     *
-     * @throws DecodingFailedException on YandexGPT API failure.
-     */
     private function handleText(IncomingMessage $message): string
     {
         $result = $this->decoder->decode($message->text);
@@ -92,17 +107,11 @@ class BotService
         return $this->decoder->formatForUser($result);
     }
 
-    /**
-     * Check if the user still has free decodes available.
-     */
     private function withinLimit(string $userId): bool
     {
         return (int) cache()->get('decoder:usage:'.$userId, 0) < self::FREE_LIMIT;
     }
 
-    /**
-     * Increment the user's decode counter in cache.
-     */
     private function incrementUsage(string $userId): void
     {
         $key = 'decoder:usage:'.$userId;

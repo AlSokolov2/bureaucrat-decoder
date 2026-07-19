@@ -34,9 +34,9 @@ class BotServiceTest extends TestCase
         $msg = new IncomingMessage('telegram', '123', '456', '/start', null, null);
         $response = $this->service->process($msg);
 
-        $this->assertStringContainsString('Дешифратор', $response);
-        $this->assertStringContainsString('фото', $response);
-        $this->assertStringContainsString('5', $response); // FREE_LIMIT
+        $this->assertStringContainsString('Дешифратор', $response->text);
+        $this->assertStringContainsString('фото', $response->text);
+        $this->assertNull($response->keyboard); // no keyboard for /start
     }
 
     public function test_it_asks_for_photo_or_text_on_empty_message(): void
@@ -44,17 +44,40 @@ class BotServiceTest extends TestCase
         $msg = new IncomingMessage('telegram', '1', '2', null, null, null);
         $response = $this->service->process($msg);
 
-        $this->assertStringContainsString('фото или текст', $response);
+        $this->assertStringContainsString('фото или текст', $response->text);
     }
 
     public function test_it_shows_subscribe_hint_when_over_limit(): void
     {
-        // Simulate 5 successful decodes via the fake cache
         Cache::put('decoder:usage:overlimit-user', 5, now()->addYear());
 
         $msg = new IncomingMessage('telegram', 'overlimit-user', '2', 'текст', null, null);
         $response = $this->service->process($msg);
 
-        $this->assertStringContainsString('лимит', $response);
+        $this->assertStringContainsString('лимит', $response->text);
+    }
+
+    public function test_feedback_good_callback_returns_thanks(): void
+    {
+        $response = $this->service->processCallback('feedback:good', 'user-1');
+
+        $this->assertStringContainsString('Спасибо', $response->text);
+        $this->assertNull($response->keyboard);
+    }
+
+    public function test_feedback_bad_callback_returns_options_with_keyboard(): void
+    {
+        $response = $this->service->processCallback('feedback:bad', 'user-1');
+
+        $this->assertStringContainsString('не так', $response->text);
+        $this->assertNotNull($response->keyboard);
+        $this->assertCount(5, $response->keyboard);
+    }
+
+    public function test_feedback_detail_callback_returns_thanks(): void
+    {
+        $response = $this->service->processCallback('feedback:detail:amount', 'user-1');
+
+        $this->assertStringContainsString('Спасибо', $response->text);
     }
 }
