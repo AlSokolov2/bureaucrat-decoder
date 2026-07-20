@@ -31,7 +31,12 @@ class VkWebhookController extends Controller
             return response((string) $request->input('group_id') === $groupId ? $this->confirmationCode() : '');
         }
 
-        // Handle callback event
+        // Handle message_event (keyboard button press)
+        if ($request->input('type') === 'message_event') {
+            return $this->handleMessageEvent($request, $service);
+        }
+
+        // Handle message_new event
         $adapter = $this->createAdapter();
 
         $message = $adapter->extractMessage($data);
@@ -67,6 +72,33 @@ class VkWebhookController extends Controller
      * Confirmation code that VK sends during server setup.
      * We echo it back to prove we control the server.
      */
+    /**
+     * Handle a keyboard callback button press (message_event).
+     */
+    private function handleMessageEvent(Request $request, BotService $service): Response
+    {
+        $obj = $request->input('object', []);
+        $payload = json_decode($obj['payload'] ?? '{}', true);
+        $callbackData = $payload['callback_data'] ?? '';
+        $userId = (string) ($obj['user_id'] ?? '');
+        $peerId = (string) ($obj['peer_id'] ?? '');
+        $eventId = $obj['event_id'] ?? '';
+        $conversationMessageId = (int) ($obj['conversation_message_id'] ?? 0);
+
+        $adapter = $this->createAdapter();
+
+        // Acknowledge the event (stop spinner)
+        $adapter->answerMessageEvent($eventId, $userId, $peerId);
+
+        $response = $service->processCallback($callbackData, $userId);
+
+        if ($response->text !== '') {
+            $adapter->editMessageText($peerId, $conversationMessageId, $response->text);
+        }
+
+        return response('ok');
+    }
+
     private function confirmationCode(): string
     {
         return config('services.vk.confirmation_code')

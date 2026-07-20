@@ -120,13 +120,18 @@ class VkBotAdapter implements PlatformAdapterInterface
     /**
      * Send a text message via VK Messages API.
      *
-     * @param  string  $peerId  If this is a personal response, pass the user's from_id.
+     * Strips HTML tags — VK uses plain text, not HTML.
+     *
+     * @param  string  $peerId  Community peer_id or user's from_id.
      */
     public function sendMessage(string $peerId, string $text, array $options = []): void
     {
+        // VK does not support HTML — strip tags, keep line breaks
+        $plainText = $this->stripHtml($text);
+
         $payload = [
             'peer_id' => $peerId,
-            'message' => $text,
+            'message' => $plainText,
             'random_id' => random_int(1, 2_147_483_647),
             'v' => self::API_VERSION,
             'access_token' => $this->token,
@@ -200,5 +205,53 @@ class VkBotAdapter implements PlatformAdapterInterface
     public function platformName(): string
     {
         return 'vk';
+    }
+
+    /**
+     * Answer a message_event (keyboard callback) to stop the spinner.
+     */
+    public function answerMessageEvent(string $eventId, string $userId, string $peerId): void
+    {
+        $this->http
+            ->asForm()
+            ->post('https://api.vk.com/method/messages.sendMessageEventAnswer', [
+                'event_id' => $eventId,
+                'user_id' => $userId,
+                'peer_id' => $peerId,
+                'v' => self::API_VERSION,
+                'access_token' => $this->token,
+            ]);
+    }
+
+    /**
+     * Edit a message text (after feedback callback).
+     */
+    public function editMessageText(string $peerId, int $conversationMessageId, string $text): void
+    {
+        $this->http
+            ->asForm()
+            ->post('https://api.vk.com/method/messages.edit', [
+                'peer_id' => $peerId,
+                'conversation_message_id' => $conversationMessageId,
+                'message' => $this->stripHtml($text),
+                'v' => self::API_VERSION,
+                'access_token' => $this->token,
+            ]);
+    }
+
+    /**
+     * Strip HTML tags for VK (plain text only).
+     */
+    private function stripHtml(string $text): string
+    {
+        // Replace <br> with newline
+        $text = preg_replace('/<br\s*\/?>/i', "\n", $text);
+        // Strip remaining tags
+        $text = strip_tags($text);
+        // Decode HTML entities
+        $text = html_entity_decode($text, ENT_QUOTES, 'UTF-8');
+
+        // Collapse multiple newlines
+        return trim(preg_replace("/\n{3,}/", "\n\n", $text));
     }
 }
