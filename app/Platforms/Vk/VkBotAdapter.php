@@ -140,10 +140,12 @@ class VkBotAdapter implements PlatformAdapterInterface
             ->asJson()
             ->post('https://api.vk.com/method/messages.send', $payload);
 
-        if ($response->failed()) {
+        $body = $response->json();
+        if ($response->failed() || ($body['error'] ?? null)) {
             Log::error('VK API sendMessage error', [
                 'status' => $response->status(),
-                'body' => $response->body(),
+                'vk_error' => $body['error'] ?? 'unknown',
+                'peer_id' => $peerId,
             ]);
         }
     }
