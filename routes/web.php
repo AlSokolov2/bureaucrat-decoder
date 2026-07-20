@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\MaxWebhookController;
 use App\Http\Controllers\TelegramWebhookController;
+use App\Http\Controllers\VkWebhookController;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/', function () {
@@ -19,6 +20,9 @@ Route::get('/', function () {
 
 Route::post('/webhook/telegram', TelegramWebhookController::class)
     ->name('telegram.webhook');
+
+Route::post('/webhook/vk', [VkWebhookController::class, '__invoke'])
+    ->name('vk.webhook');
 
 Route::post('/webhook/max', MaxWebhookController::class)
     ->name('max.webhook');
