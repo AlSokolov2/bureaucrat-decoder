@@ -171,15 +171,28 @@ SYS;
         foreach ($lines as $line) {
             $line = trim($line);
             match (true) {
-                (bool) preg_match('/^1\.\s*(.+)/u', $line, $m) => $result['what'] = $m[1],
-                (bool) preg_match('/^2\.\s*(.+)/u', $line, $m) => $result['amount'] = $m[1],
-                (bool) preg_match('/^3\.\s*(.+)/u', $line, $m) => $result['deadline'] = $m[1],
-                (bool) preg_match('/^4\.\s*(.+)/u', $line, $m) => $result['action'] = $m[1],
+                (bool) preg_match('/^1\.\s*(.+)/u', $line, $m) => $result['what'] = $this->clean($m[1]),
+                (bool) preg_match('/^2\.\s*(.+)/u', $line, $m) => $result['amount'] = $this->clean($m[1]),
+                (bool) preg_match('/^3\.\s*(.+)/u', $line, $m) => $result['deadline'] = $this->clean($m[1]),
+                (bool) preg_match('/^4\.\s*(.+)/u', $line, $m) => $result['action'] = $this->clean($m[1]),
                 default => null,
             };
         }
 
         return $result;
+    }
+
+    /**
+     * Strip repeated label prefixes that YandexGPT sometimes returns.
+     * E.g. "Срок: до 10.07.2026" → "до 10.07.2026".
+     */
+    private function clean(string $text): string
+    {
+        return trim(preg_replace(
+            '/^(Что случилось|Сумма|Срок|Что делать)\s*:?\s*/ui',
+            '',
+            $text
+        ));
     }
 
     private function esc(string $text): string
