@@ -28,7 +28,7 @@ class VkWebhookController extends Controller
         if ($request->input('type') === 'confirmation') {
             $groupId = config('services.vk.group_id') ?? env('VK_GROUP_ID');
 
-            return response($request->input('group_id') === $groupId ? $this->confirmationCode() : '');
+            return response((string) $request->input('group_id') === $groupId ? $this->confirmationCode() : '');
         }
 
         // Handle callback event
