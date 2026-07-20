@@ -97,7 +97,7 @@ class VkBotAdapter implements PlatformAdapterInterface
         }
 
         $response = $this->http
-            ->asJson()
+            ->asForm()
             ->post('https://api.vk.com/method/messages.delete', [
                 'cmids' => $this->messageIdToDelete,
                 'peer_id' => $this->communityPeerId,
@@ -137,7 +137,7 @@ class VkBotAdapter implements PlatformAdapterInterface
         }
 
         $response = $this->http
-            ->asJson()
+            ->asForm()
             ->post('https://api.vk.com/method/messages.send', $payload);
 
         $body = $response->json();
