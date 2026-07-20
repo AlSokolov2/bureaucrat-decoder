@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Platforms\Vk\VkBotAdapter;
 use App\Services\BotService;
+use Illuminate\Http\Client\Factory;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 use Illuminate\Support\Facades\Log;
@@ -58,7 +59,7 @@ class VkWebhookController extends Controller
             token: config('services.vk.bot_token') ?? env('VK_BOT_TOKEN', ''),
             groupId: config('services.vk.group_id') ?? env('VK_GROUP_ID', ''),
             callbackSecret: config('services.vk.callback_secret') ?? env('VK_CALLBACK_SECRET', ''),
-            http: app('http.client'),
+            http: app(Factory::class),
         );
     }
 
