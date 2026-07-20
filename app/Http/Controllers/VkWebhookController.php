@@ -39,19 +39,13 @@ class VkWebhookController extends Controller
         if ($message) {
             try {
                 $response = $service->process($message);
-
-                // Reply FIRST (before deletion — VK requires an active conversation)
-                $adapter->sendResponse($message->userId, $response);
-
-                // Then delete the incoming message from community (privacy)
-                $adapter->deleteIncomingMessage();
+                $adapter->sendResponse($message->chatId, $response);
             } catch (\Throwable $e) {
                 Log::error('VK bot error', [
                     'error' => $e->getMessage(),
                     'user_id' => $message->userId,
                 ]);
-                $adapter->sendMessage($message->userId, '⚠️ Произошла ошибка. Попробуйте позже.');
-                $adapter->deleteIncomingMessage();
+                $adapter->sendMessage($message->chatId, '⚠️ Произошла ошибка. Попробуйте позже.');
             }
         }
 
