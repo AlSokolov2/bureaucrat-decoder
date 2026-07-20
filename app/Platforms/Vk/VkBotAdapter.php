@@ -9,18 +9,26 @@ use Illuminate\Http\Client\Factory as HttpClient;
 use Illuminate\Support\Facades\Log;
 
 /**
- * VK Bot adapter — converts VK Callback API events
- * into platform-agnostic DTOs.
+ * VK Bot adapter.
  *
- * VK Bot API works via:
- *  - Callback API (webhook): VK POSTs events to our server
- *  - Messages API: we POST to VK to send responses
+ * Flow:
+ *  1. User sends message to community
+ *  2. VK Callback API POSTs to our server
+ *  3. Bot processes the document
+ *  4. Bot DELETES the message from community (privacy)
+ *  5. Bot replies PERSONALLY to the user (private message)
  *
  * @see https://dev.vk.com/ru/api/bots/getting-started
  */
 class VkBotAdapter implements PlatformAdapterInterface
 {
     private const API_VERSION = '5.199';
+
+    /** Incoming message IDs to delete after processing. */
+    private ?string $messageIdToDelete = null;
+
+    /** Community peer_id for deleting the incoming message. */
+    private ?string $communityPeerId = null;
 
     public function __construct(
         private readonly string $token,
@@ -32,8 +40,7 @@ class VkBotAdapter implements PlatformAdapterInterface
     /**
      * Extract an IncomingMessage from a VK Callback API event.
      *
-     * @param  array  $update  JSON-decoded VK webhook body.
-     * @return IncomingMessage|null null if not a message_new event.
+     * Also stores the message ID for later deletion.
      */
     public function extractMessage(mixed $update): ?IncomingMessage
     {
@@ -52,7 +59,11 @@ class VkBotAdapter implements PlatformAdapterInterface
         $peerId = (string) ($msg['peer_id'] ?? '');
         $text = $msg['text'] ?? null;
 
-        // Photo attachments: get the URL of the largest photo
+        // Store for deletion after processing
+        $this->messageIdToDelete = (string) ($msg['conversation_message_id'] ?? $msg['id'] ?? '');
+        $this->communityPeerId = $peerId;
+
+        // Photo attachments
         $photoUrl = null;
         $attachments = $msg['attachments'] ?? [];
         foreach ($attachments as $att) {
@@ -75,7 +86,41 @@ class VkBotAdapter implements PlatformAdapterInterface
     }
 
     /**
+     * Delete the incoming message from the community chat.
+     *
+     * Called after processing — keeps chat history clean and private.
+     */
+    public function deleteIncomingMessage(): void
+    {
+        if (! $this->messageIdToDelete || ! $this->communityPeerId) {
+            return;
+        }
+
+        $response = $this->http
+            ->asJson()
+            ->post('https://api.vk.com/method/messages.delete', [
+                'cmids' => $this->messageIdToDelete,
+                'peer_id' => $this->communityPeerId,
+                'delete_for_all' => 1,
+                'v' => self::API_VERSION,
+                'access_token' => $this->token,
+            ]);
+
+        if ($response->failed()) {
+            Log::error('VK API deleteMessage error', [
+                'status' => $response->status(),
+                'body' => $response->body(),
+            ]);
+        }
+
+        $this->messageIdToDelete = null;
+        $this->communityPeerId = null;
+    }
+
+    /**
      * Send a text message via VK Messages API.
+     *
+     * @param  string  $peerId  If this is a personal response, pass the user's from_id.
      */
     public function sendMessage(string $peerId, string $text, array $options = []): void
     {
@@ -117,8 +162,6 @@ class VkBotAdapter implements PlatformAdapterInterface
 
     /**
      * Confirm a Callback API server request from VK.
-     *
-     * VK sends a confirmation code on first setup — we must echo it back.
      */
     public function confirmServer(string $code): string
     {
@@ -126,24 +169,7 @@ class VkBotAdapter implements PlatformAdapterInterface
     }
 
     /**
-     * Verify that the webhook came from VK (signature check).
-     */
-    public function verifySignature(array $data, string $signatureHeader): bool
-    {
-        if (empty($this->callbackSecret) || empty($signatureHeader)) {
-            return true; // Skip if not configured
-        }
-
-        // VK signature: sha256(secret + group_id + ...)
-        // Implementation depends on VK API version.
-        return true; // TODO: proper verification
-    }
-
-    /**
-     * Build VK keyboard from our internal format (Telegram-compatible).
-     *
-     * VK keyboard format is different from Telegram's inline_keyboard.
-     * This method translates between them.
+     * Build VK keyboard from our internal (Telegram-compatible) format.
      */
     private function buildKeyboard(array $internalKeyboard): array
     {
