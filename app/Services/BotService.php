@@ -17,6 +17,7 @@ class BotService
 
     public function __construct(
         private readonly BureaucratDecoderService $decoder,
+        private readonly InputGuard $guard,
     ) {}
 
     /**
@@ -40,13 +41,18 @@ class BotService
             return new BotResponse(Messages::limitExceeded());
         }
 
+        // Rate limit: prevent rapid-fire requests
+        if ($this->guard->isRateLimited($message->userId)) {
+            return new BotResponse(Messages::rateLimited());
+        }
+
         try {
             if ($message->hasPhoto()) {
                 return $this->decodeResponse($this->handlePhoto($message));
             }
 
             if ($message->hasText()) {
-                return $this->decodeResponse($this->handleText($message));
+                return $this->handleText($message);
             }
 
             return new BotResponse(Messages::askForPhotoOrText());
@@ -99,12 +105,24 @@ class BotService
         return $this->decoder->formatForUser($result);
     }
 
-    private function handleText(IncomingMessage $message): string
+    /**
+     * Handle text: validate, truncate, decode.
+     */
+    private function handleText(IncomingMessage $message): BotResponse
     {
-        $result = $this->decoder->decode($message->text);
+        // Input guard: injection check + document detection
+        $error = $this->guard->validate($message->text);
+        if ($error !== null) {
+            return new BotResponse($error);
+        }
+
+        // Truncate oversized input
+        $text = $this->guard->truncate($message->text);
+
+        $result = $this->decoder->decode($text);
         $this->incrementUsage($message->userId);
 
-        return $this->decoder->formatForUser($result);
+        return $this->decodeResponse($this->decoder->formatForUser($result));
     }
 
     private function withinLimit(string $userId): bool

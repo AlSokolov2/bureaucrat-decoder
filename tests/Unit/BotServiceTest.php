@@ -5,6 +5,7 @@ namespace Tests\Unit;
 use App\DTO\IncomingMessage;
 use App\Services\BotService;
 use App\Services\BureaucratDecoderService;
+use App\Services\InputGuard;
 use Illuminate\Http\Client\Factory as HttpClient;
 use Illuminate\Support\Facades\Cache;
 use Mockery;
@@ -20,7 +21,8 @@ class BotServiceTest extends TestCase
 
         $http = Mockery::mock(HttpClient::class);
         $decoder = new BureaucratDecoderService($http, 'fake-folder', 'fake-key');
-        $this->service = new BotService($decoder);
+        $guard = new InputGuard;
+        $this->service = new BotService($decoder, $guard);
     }
 
     protected function tearDown(): void

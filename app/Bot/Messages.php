@@ -80,6 +80,12 @@ class Messages
         return '⚠️ Произошла ошибка. Попробуйте позже.';
     }
 
+    /** Rate limit: user is sending requests too fast. */
+    public static function rateLimited(): string
+    {
+        return '⏳ Пожалуйста, подождите 10 секунд перед следующим запросом.';
+    }
+
     /*
     |--------------------------------------------------------------------------
     | Feedback
